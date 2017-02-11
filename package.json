@@ -1,0 +1,49 @@
+{
+  "name": "fusebox-adapter-plugin",
+  "version": "1.0.0",
+  "description": "Adapt gulp plugins, browserify transforms and streams to work with fuse-box",
+  "main": "lib",
+  "typings": "lib",
+  "scripts": {
+    "clean": "rm -rf .fusebox",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "ava lib/*.test.js --verbose --serial --no-cache",
+    "test:w": "ava lib/*.test.js --verbose --serial --watch",
+    "dev": "concurrently \"npm run watch\" \"npm run test:w\""
+  },
+  "devDependencies": {
+    "@types/node": "7.0.5",
+    "@types/vinyl": "2.0.0",
+    "ava": "0.18.1",
+    "concurrently": "3.2.0",
+    "gulp-debug": "3.0.0",
+    "gulp-eslint": "3.0.1",
+    "gulp-inject-string": "1.1.0",
+    "gulp-json5": "0.0.2",
+    "gulp-load-plugins": "1.5.0",
+    "gulp-markdown": "1.2.0",
+    "gulp-replace": "0.5.4",
+    "gulp-size": "2.1.0",
+    "typescript": "2.1.6"
+  },
+  "peerDependencies": {
+    "fuse-box": "^1.3.24"
+  },
+  "dependencies": {
+    "is-stream": "1.1.0",
+    "pumpify": "1.3.5",
+    "stream-to-string": "1.1.0",
+    "toSrc": "0.1.4",
+    "vinyl": "2.0.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "gulp",
+    "fuse-box",
+    "browserify"
+  ],
+  "license": "XNet"
+}
