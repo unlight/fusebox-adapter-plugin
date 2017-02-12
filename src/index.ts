@@ -1,23 +1,26 @@
 import { WorkFlowContext } from 'fuse-box';
 import { Plugin } from 'fuse-box/dist/typings/WorkflowContext';
 import { File } from 'fuse-box/dist/typings/File';
-import { Transform, Writable } from 'stream';
-import { findAdapter } from './utils';
-import { relative } from 'path';
-import { StreamFactory } from './types';
-const toSrc = require('toSrc');
+import { PassThrough } from 'stream';
+import { StreamFactory, StreamInfo } from './types';
+import { createTransformFactory } from './utils';
 const toString = require('stream-to-string');
 const pumpify = require('pumpify');
-const cwfile = relative(process.cwd(), __filename).replace(/\\/g, '/');
 
-export function AdapterPlugin(streams: StreamFactory[]) {
-    return new FuseBoxAdapterPlugin(streams);
+export const VINYL = Symbol('VINYL');
+export const TRANSFORM = Symbol('TRANSFORM');
+export const TEXT = Symbol('STREAM');
+
+export function AdapterPlugin(streamFactories: StreamFactory[]) {
+    return new FuseBoxAdapterPlugin(streamFactories);
 }
 
 export class FuseBoxAdapterPlugin implements Plugin {
 
+    test = /.*/;
+
     constructor(
-        private streams: StreamFactory[]
+        private streamFactories: StreamFactory[]
     ) {
     }
 
@@ -40,18 +43,26 @@ export class FuseBoxAdapterPlugin implements Plugin {
 
         file.loadContents();
 
-        const input = new Writable({ objectMode: true });
-        const streams: any[] = [input];
-        this.streams.forEach(create => {
-            const unknown = create(file);
-            const adapter = findAdapter(unknown);
-            if (!adapter) {
-                console.warn(`${cwfile}: Unknown type of stream: ${toSrc(unknown)}`);
-                return;
+        const input = new PassThrough({ objectMode: true });
+        const streams: StreamInfo[] = [[TRANSFORM, input]];
+        this.streamFactories.forEach(create => {
+            const [type, stream] = create(file);
+            const [[prevType, prevStream]] = streams.slice(-1);
+            if (prevType !== type) {
+                const transformFactory = createTransformFactory(prevType, type);
+                const transform = transformFactory();
+                streams.push([type, transform]);
             }
-            streams.push(adapter.adapt(unknown));
+            streams.push([type, stream]);
         });
-        const pipeline = pumpify.obj(streams);
+
+        const [[prevType, prevStream]] = streams.slice(-1);
+        if (prevType !== TRANSFORM) {
+            const transform = createTransformFactory(prevType, TRANSFORM)();
+            streams.push([TRANSFORM, transform]);
+        }
+
+        const pipeline = pumpify.obj(streams.map(([type, stream]) => stream));
         input.write(file.contents);
         input.end();
 
