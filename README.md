@@ -31,9 +31,9 @@ You can use only those plugins which only manipulates `contents` property of vin
 Applying of some plugins, like `gulp-rename`, does not make sense,
 because they do not affect `contents`, but others - path, dirname, etc.
 
+If you are using only gulp plugin check [fusebox-gulp-plugin](https://github.com/unlight/fusebox-gulp-plugin)
+
 ### API
 ```js
-class AdapterPlugin {
-    constructor(StreamFactories: ((file: File) => [symbol, Transform])[]);
-}
+function AdapterPlugin(StreamFactories: ((file: File) => [symbol, Transform])[])
 ```
