@@ -1,15 +1,21 @@
 import { WorkFlowContext } from 'fuse-box';
 import { Plugin } from 'fuse-box/dist/typings/WorkflowContext';
 import { File } from 'fuse-box/dist/typings/File';
-import { PassThrough } from 'stream';
-import { StreamFactory, StreamInfo } from './types';
+import { Transform, PassThrough } from 'stream';
 import { createTransformFactory } from './utils';
-const toString = require('stream-to-string');
-const pumpify = require('pumpify');
+import toString = require('stream-to-string');
+import pumpify = require('pumpify');
+import isStream = require('is-stream');
+import { relative } from 'path';
+import toSrc = require('toSrc');
+const cwfile = relative(process.cwd(), __filename).replace(/\\/g, '/');
 
 export const VINYL = Symbol('VINYL');
-export const TRANSFORM = Symbol('TRANSFORM');
-export const TEXT = Symbol('STREAM');
+export const OBJECT = Symbol('OBJECT');
+export const TEXT = Symbol('TEXT');
+
+export type StreamInfo = [symbol, Transform];
+export type StreamFactory = ((file: File) => StreamInfo);
 
 export function AdapterPlugin(streamFactories: StreamFactory[]) {
     return new FuseBoxAdapterPlugin(streamFactories);
@@ -44,25 +50,38 @@ export class FuseBoxAdapterPlugin implements Plugin {
         file.loadContents();
 
         const input = new PassThrough({ objectMode: true });
-        const streams: StreamInfo[] = [[TRANSFORM, input]];
+        const streamTuples: StreamInfo[] = [[OBJECT, input]];
         this.streamFactories.forEach(create => {
-            const [type, stream] = create(file);
-            const [[prevType, prevStream]] = streams.slice(-1);
+            let result = create(file);
+            let type = VINYL, stream: Transform;
+            if (Array.isArray(result)) {
+                [type, stream] = result;
+            } else {
+                stream = result;
+            }
+            if (type === TEXT && !isStream.transform(stream) && typeof stream === 'function') {
+                // Looks like browserify transform.
+                stream = stream(file.absPath);
+                if (!isStream(stream)) {
+                    console.warn(`${cwfile}: Cannot adapt stream ${toSrc(stream)}.`);
+                    return;
+                }
+            }
+            const [[prevType, prevStream]] = streamTuples.slice(-1);
             if (prevType !== type) {
                 const transformFactory = createTransformFactory(prevType, type);
-                const transform = transformFactory();
-                streams.push([type, transform]);
+                const transform = transformFactory(file.absPath);
+                streamTuples.push([type, transform]);
             }
-            streams.push([type, stream]);
+            streamTuples.push([type, stream]);
         });
-
-        const [[prevType, prevStream]] = streams.slice(-1);
-        if (prevType !== TRANSFORM) {
-            const transform = createTransformFactory(prevType, TRANSFORM)();
-            streams.push([TRANSFORM, transform]);
+        const [[prevType, prevStream]] = streamTuples.slice(-1);
+        if (prevType !== OBJECT) {
+            const transform = createTransformFactory(prevType, OBJECT)(file.absPath);
+            streamTuples.push([OBJECT, transform]);
         }
-
-        const pipeline = pumpify.obj(streams.map(([type, stream]) => stream));
+        const streams = streamTuples.map(([type, stream]) => stream);
+        const pipeline = pumpify.obj(streams);
         input.write(file.contents);
         input.end();
 

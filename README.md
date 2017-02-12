@@ -6,7 +6,7 @@ Adapt gulp plugins, browserify transforms and streams to work with fuse-box.
 ```js
 const fsbx = require('fuse-box');
 const g = require('gulp-load-plugins')();
-const { AdapterPlugin } = require('fusebox-adapter-plugin');
+import { AdapterPlugin, VINYL, OBJECT, TEXT } = require('fusebox-adapter-plugin');
 
 const fuseBox = fsbx.FuseBox.init({
     homeDir: 'src',
@@ -14,7 +14,8 @@ const fuseBox = fsbx.FuseBox.init({
     plugins: [
         // Other fusebox plugins...
         AdapterPlugin([
-        	(file) => g.replace('foo', 'bar'),
+            (file) => [TEXT, envify()],
+        	(file) => [VINYL, g.replace('foo', 'bar')],
         	// Other plugins, transforms, streams...
         ])
     ]
@@ -33,8 +34,6 @@ because they do not affect `contents`, but others - path, dirname, etc.
 ### API
 ```js
 class AdapterPlugin {
-    constructor(streams: ((file: File) => any)[]);
+    constructor(StreamFactories: ((file: File) => [symbol, Transform])[]);
 }
 ```
-
-### Examples
