@@ -1,5 +1,7 @@
 fusebox-adapter-plugin
 ======================
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/unlight/fusebox-adapter-plugin.svg)](https://greenkeeper.io/)
 Adapt gulp plugins, browserify transforms and streams to work with fuse-box.
 
 ## Usage
